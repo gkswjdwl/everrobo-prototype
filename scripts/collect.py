@@ -2,6 +2,7 @@
 (국토교통부 '아파트 매매 실거래가 상세 자료' Open API)
 
 세 단지 모두 송파구 잠실동이라 한 번의 호출(송파구 + 계약년월)로 함께 받아 단지별로 나눕니다.
+수집한 뒤 이상치 표시(out)와 3개월 ARIMA 예측(forecast)을 같은 JSON 파일에 함께 저장합니다. (forecast.py)
 
 사용법
   python scripts/collect.py --probe          # 인증키·응답 구조·단지명 매칭 점검 (저장 안 함)
@@ -22,6 +23,9 @@ from urllib.parse import unquote
 
 import requests
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forecast as fc_mod  # noqa: E402
+
 BASE_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
 LAWD_CD = "11710"  # 송파구 법정동코드 앞 5자리
 DONG = "잠실동"
@@ -39,7 +43,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "data" / "transactions.json"
 KST = timezone(timedelta(hours=9))
 
-FIELD_ORDER = ("c", "date", "dong", "floor", "area", "size", "price", "direct", "built")
+FIELD_ORDER = ("c", "date", "dong", "floor", "area", "size", "price", "direct", "built", "out")
 
 # 응답에 반드시 있어야 하는 태그 (없으면 API 스펙이 바뀐 것이므로 중단)
 REQUIRED = ("aptNm", "umdNm", "dealAmount", "excluUseAr", "floor",
@@ -161,31 +165,34 @@ def sort_key(t):
 
 
 def load_existing():
-    """(기존 거래 목록, 현재 스키마(v2) 여부). v1 파일의 거래는 잠실엘스로 간주."""
+    """(기존 거래 목록, 기존 예측, 현재 스키마 여부). v1 파일의 거래는 잠실엘스로 간주."""
     if not OUT.exists():
-        return [], True
+        return [], {}, True
     try:
         data = json.loads(OUT.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return [], True
+        return [], {}, True
     txs = data.get("transactions", [])
     for t in txs:
         t.setdefault("c", DEFAULT_COMPLEX)
-    return txs, "complexes" in data
+    return txs, data.get("forecast", {}), ("complexes" in data and "forecast" in data)
 
 
-def write_output(txs, now):
+def write_output(txs, fc, now):
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    counts = {}
+    counts, outs = {}, {}
     for t in txs:
         counts[t["c"]] = counts.get(t["c"], 0) + 1
-    comps = [{"id": c["id"], "name": c["name"], "count": counts.get(c["id"], 0)} for c in COMPLEXES]
+        outs[t["c"]] = outs.get(t["c"], 0) + (1 if t.get("out") else 0)
+    comps = [{"id": c["id"], "name": c["name"], "count": counts.get(c["id"], 0), "out": outs.get(c["id"], 0)}
+             for c in COMPLEXES]
     lines = ",\n".join(
         "  " + json.dumps({k: t.get(k) for k in FIELD_ORDER}, ensure_ascii=False, separators=(",", ":"))
         for t in txs)
-    text = ('{"unit":"만원","updated":%s,"count":%d,"complexes":%s,"transactions":[\n%s\n]}\n'
+    text = ('{"unit":"만원","updated":%s,"count":%d,"complexes":%s,"forecast":%s,"transactions":[\n%s\n]}\n'
             % (json.dumps(now.isoformat(timespec="seconds")), len(txs),
-               json.dumps(comps, ensure_ascii=False, separators=(",", ":")), lines))
+               json.dumps(comps, ensure_ascii=False, separators=(",", ":")),
+               json.dumps(fc, ensure_ascii=False, separators=(",", ":")), lines))
     OUT.write_text(text, encoding="utf-8")
 
 
@@ -267,15 +274,25 @@ def main():
         time.sleep(0.2)
 
     # 다시 받은 달은 통째로 교체 (신고 지연·정정·해제를 자동 반영)
-    old, schema_ok = load_existing()
+    old, old_fc, schema_ok = load_existing()
     kept = [t for t in old if t["date"][:7].replace("-", "") not in fresh]
     merged = sorted(kept + [r for recs in fresh.values() for r in recs], key=sort_key, reverse=True)
 
-    if schema_ok and merged == sorted(old, key=sort_key, reverse=True):
+    # 이상치 표시와 예측은 전체 데이터로 매번 다시 계산 (실패해도 수집 결과는 저장)
+    fc_mod.flag_outliers(merged)
+    try:
+        fc = fc_mod.build_forecast(merged, now.strftime("%Y-%m"))
+    except Exception as e:
+        print(f"예측 계산 실패({type(e).__name__}) - 예측 없이 저장합니다")
+        fc = old_fc
+
+    if schema_ok and fc == old_fc and merged == sorted(old, key=sort_key, reverse=True):
         print("변경 없음")
         return
-    write_output(merged, now)
-    print(f"저장 완료: 총 {len(merged)}건 ({summarize(merged)}) -> {OUT.relative_to(ROOT)}")
+    write_output(merged, fc, now)
+    n_out = sum(1 for t in merged if t.get("out"))
+    n_fc = sum(len(v) for v in fc.values())
+    print(f"저장 완료: 총 {len(merged)}건 ({summarize(merged)}), 이상치 후보 {n_out}건, 예측 {n_fc}개 조합 -> {OUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

@@ -4,18 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>잠실 실거래가</title>
-<meta name="theme-color" content="#F3F5F8">
+<meta name="theme-color" content="#F3F5F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1B2D" media="(prefers-color-scheme: dark)">
+<meta name="description" content="잠실엘스·리센츠·트리지움 매매 실거래가와 3개월 예측">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="잠실 실거래가">
 <style>
 :root{
   --bg:#F3F5F8; --card:#FFFFFF; --text:#17212B; --sub:#55606E; --line:#EDF0F4;
   --accent:#1B4FD8; --accent-ink:#FFFFFF; --up:#C42032; --down:#1B4FD8;
   --chip-line:#CBD3DD; --pill-bg:#E4EAF5; --pill-ink:#33415C; --badge-bg:#FFE9C7; --badge-ink:#8A4B00;
+  --fc:#D4600A; --new-bg:#DDE7FF; --new-ink:#1B3FA8;
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#0F1B2D; --card:#16263D; --text:#E8EEF7; --sub:#A9B7CC; --line:#2B3F5C;
     --accent:#5B8CFF; --accent-ink:#0F1B2D; --up:#FF8A96; --down:#7FA6FF;
     --chip-line:#3A4F70; --pill-bg:#22365A; --pill-ink:#C9D6EC; --badge-bg:#3A2A10; --badge-ink:#F2A33A;
+    --fc:#FFA45C; --new-bg:#22365A; --new-ink:#BCD0FF;
   }
 }
 *{box-sizing:border-box}
@@ -31,7 +41,7 @@ h1{margin:0;font-size:26px;line-height:1.2;letter-spacing:-0.02em}
   background:var(--card);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .chip:focus-visible,.more:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.chip .sub{font-size:11px;opacity:.8;margin-left:4px;font-weight:400}
+
 .card{background:var(--card);border-radius:16px;padding:18px}
 .lbl{font-size:13px;color:var(--sub)}
 .big{font-size:32px;font-weight:700;letter-spacing:-0.02em;line-height:1.25}
@@ -46,6 +56,9 @@ svg.chart{width:100%;height:auto;display:block}
 .axis{fill:var(--sub);font-size:10px}
 .dot{fill:var(--accent);opacity:.4}
 .avg{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.fc-band{fill:var(--fc);fill-opacity:.18;stroke:none}
+.fc-line{fill:none;stroke:var(--fc);stroke-width:2.5;stroke-dasharray:6 4;stroke-linecap:round}
+.fc-dot{fill:var(--card);stroke:var(--fc);stroke-width:2.5}
 .last{fill:var(--card);stroke:var(--accent);stroke-width:2.5}
 .empty{color:var(--sub);font-size:14px;text-align:center;padding:24px 8px}
 .list-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:0 2px}
@@ -60,6 +73,20 @@ svg.chart{width:100%;height:auto;display:block}
 .item .s{font-size:12px;color:var(--sub)}
 .item .p{font-size:16px;font-weight:700;white-space:nowrap}
 .badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;font-size:11px;background:var(--badge-bg);color:var(--badge-ink)}
+.badge.new{background:var(--new-bg);color:var(--new-ink);font-weight:700}
+.badge.high{background:var(--up);color:#fff;font-weight:700;margin-left:0}
+.pills{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.toggles{display:flex;gap:16px;flex-wrap:wrap;padding:0 2px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:var(--bg);border-radius:12px;padding:12px}
+.tile .v{font-size:20px;font-weight:700;letter-spacing:-0.02em;line-height:1.3}
+.tile .v.fc{color:var(--fc)}
+.tile .m{font-size:12px;color:var(--sub)}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:10px 2px 0}
+.kv b{font-weight:700;text-align:right}
+.card h2{margin:0 0 12px;font-size:16px}
+.note{font-size:12px;color:var(--sub);line-height:1.6;margin:10px 0 0}
+.warn{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--badge-bg);color:var(--badge-ink);margin-left:8px;vertical-align:middle;font-weight:400}
 .more{min-height:44px;width:100%;border:0;border-top:1px solid var(--line);background:transparent;color:var(--accent);
   font:inherit;font-size:14px;font-weight:700;cursor:pointer;border-radius:0 0 16px 16px}
 .foot{margin:0;font-size:12px;line-height:1.6;color:var(--sub);text-align:center}
@@ -73,15 +100,25 @@ svg.chart{width:100%;height:auto;display:block}
       <span class="loc">송파구 · 잠실동</span>
       <h1 id="title">잠실 실거래가</h1>
     </div>
-    <span class="pill" id="updated" hidden></span>
+    <div class="pills">
+      <span class="pill" id="updated" hidden></span>
+      <span class="pill" id="newpill" hidden></span>
+    </div>
   </header>
 
   <div class="chips" id="comps" role="group" aria-label="단지 선택"></div>
   <div class="chips" id="sizes" role="group" aria-label="평형 선택"></div>
 
+  <div class="toggles">
+    <label class="toggle"><input type="checkbox" id="hideOut" checked> <span id="outLabel">이상치 제외</span></label>
+    <label class="toggle"><input type="checkbox" id="hideDirect"> 직거래 제외</label>
+  </div>
+
   <section class="card" id="summary" aria-live="polite">
     <div class="empty">불러오는 중…</div>
   </section>
+
+  <section class="card" id="forecast" hidden></section>
 
   <section class="card" id="chartcard" hidden>
     <div class="chart-head">
@@ -93,13 +130,14 @@ svg.chart{width:100%;height:auto;display:block}
       </div>
     </div>
     <div id="chart"></div>
-    <div class="meta">점: 개별 거래 · 선: 월 평균</div>
+    <div class="meta" id="legend">점: 개별 거래 · 실선: 월 평균</div>
   </section>
+
+  <section class="card" id="metrics" hidden></section>
 
   <section id="listwrap" hidden>
     <div class="list-head">
       <h2>최근 거래</h2>
-      <label class="toggle"><input type="checkbox" id="hideDirect"> 직거래 제외</label>
     </div>
     <div class="card" style="padding:0;margin-top:8px">
       <div class="list" id="list"></div>
@@ -108,35 +146,39 @@ svg.chart{width:100%;height:auto;display:block}
   </section>
 
   <p class="foot">자료: 국토교통부 실거래가 공개시스템 (공공데이터포털 Open API)<br>
-    계약 후 신고·공개까지 시차가 있어 최근 거래는 늦게 반영될 수 있어요.</p>
+    계약 후 신고·공개까지 시차가 있어 최근 거래는 늦게 반영될 수 있어요.<br>
+    예측은 통계 모델(ARIMA)의 추정치로 참고용이며 실제와 다를 수 있어요.<br>
+    이상치는 같은 단지·크기의 주변 거래와 25% 넘게 차이 나는 거래예요.</p>
 </main>
 
 <script>
 (function () {
-  var state = { all: [], comps: [], cid: null, size: null, range: 12, hideDirect: false, shown: 20 };
+  var state = { all: [], comps: [], fc: {}, cid: null, size: null, range: 12,
+                hideDirect: false, hideOut: true, shown: 20, newKeys: {} };
   var $ = function (id) { return document.getElementById(id); };
 
-  // 평형 표기는 쓰지 않고 전용면적(㎡)만 보여줍니다. 나중에 쓰려면 단지별로 { 구간: 평 } 을 채우세요.
-  // 예) els: { 84: 33 }
-  var PYEONG = { els: {}, ricenz: {}, trizium: {} };
-  function pyOf(size) { return (PYEONG[state.cid] || {})[size] || null; }
-  function pyText(size) { var p = pyOf(size); return p ? p + "평형" : null; }
-  function sizeName(size) {             // "33평형 (84㎡)" 또는 "84㎡"
-    var p = pyText(size);
-    return p ? p + " (" + size + "㎡)" : size + "㎡";
+  function store(k, v) {                // 브라우저 저장소는 막혀 있을 수 있어 항상 try/catch
+    try {
+      if (v === undefined) { var r = localStorage.getItem(k); return r ? JSON.parse(r) : null; }
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch (e) {}
+    return null;
   }
+
+  function sizeName(size) { return size + "㎡"; }
   function compName() {
     var c = state.comps.filter(function (x) { return x.id === state.cid; })[0];
     return c ? c.name : "";
   }
-
   function won(p) {              // 만원 -> "25억 2,000만"
-    var e = Math.floor(p / 10000), m = p % 10000;
+    var e = Math.floor(p / 10000), m = Math.round(p % 10000);
     if (!e) return m.toLocaleString("ko-KR") + "만";
     return m ? e + "억 " + m.toLocaleString("ko-KR") + "만" : e + "억";
   }
   function eok(p) { return (p / 10000).toFixed(1) + "억"; }
   function md(d) { return d.slice(5).replace("-", "."); }
+  function pct(a, b) { return (a / b - 1) * 100; }
+  function sgn(p) { return (p > 0 ? "▲ " : p < 0 ? "▼ " : "") + Math.abs(p).toFixed(1) + "%"; }
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -144,35 +186,62 @@ svg.chart{width:100%;height:auto;display:block}
     return n;
   }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+  function isoDaysAgo(months) {
+    var c = new Date(); c.setMonth(c.getMonth() - months);
+    return c.toISOString().slice(0, 10);
+  }
+  function key(t) { return [t.c, t.date, t.dong, t.floor, t.area, t.price].join("|"); }
 
+  function inScope(t) { return t.c === state.cid && t.size === state.size; }
   function current() {
     return state.all.filter(function (t) {
-      return t.c === state.cid && t.size === state.size && !(state.hideDirect && t.direct);
+      return inScope(t) && !(state.hideOut && t.out) && !(state.hideDirect && t.direct);
     });                                   // 파일이 최신순이라 그대로 최신순
   }
+  function fcFor() {
+    var f = (state.fc[state.cid] || {})[String(state.size)];
+    return f && f.pts && f.pts.length ? f : null;
+  }
 
+  /* ------------------------------------------------------------ 칩 */
+  function renderComps() {
+    var box = $("comps"); clear(box);
+    state.comps.forEach(function (c) {
+      var b = el("button", "chip", c.name);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(c.id === state.cid));
+      b.addEventListener("click", function () { selectComplex(c.id); });
+      box.appendChild(b);
+    });
+  }
   function renderSizes() {
     var box = $("sizes"); clear(box);
     var sizes = {};
     state.all.forEach(function (t) { if (t.c === state.cid) sizes[t.size] = (sizes[t.size] || 0) + 1; });
     Object.keys(sizes).map(Number).sort(function (a, b) { return a - b; }).forEach(function (s) {
-      var p = pyText(s);
-      var b = el("button", "chip", p || s + "㎡");
-      if (p) b.appendChild(el("span", "sub", s + "㎡"));
+      var b = el("button", "chip", sizeName(s));
       b.type = "button";
       b.setAttribute("aria-pressed", String(s === state.size));
       b.addEventListener("click", function () { state.size = s; state.shown = 20; renderAll(); });
       box.appendChild(b);
     });
   }
+  function renderOutLabel() {
+    var n = state.all.filter(function (t) { return inScope(t) && t.out; }).length;
+    $("outLabel").textContent = "이상치 제외" + (n ? " (" + n + "건)" : "");
+  }
 
+  /* ------------------------------------------------------------ 요약·지표 */
   function renderSummary(list) {
     var box = $("summary"); clear(box);
     if (!list.length) { box.appendChild(el("div", "empty", "이 조건의 거래가 없어요.")); return; }
     var a = list[0], b = list[1];
-    box.appendChild(el("div", "lbl", compName() + " " + sizeName(state.size) + " 최근 실거래가"));
-    var big = el("div", "big", won(a.price));
-    box.appendChild(big);
+    var max = list.reduce(function (m, t) { return Math.max(m, t.price); }, 0);
+    var lbl = el("div", "lbl", compName() + " " + sizeName(state.size) + " 최근 실거래가");
+    if (list.length >= 10 && a.price >= max) lbl.appendChild(el("span", "badge high", "신고가"));
+    if (state.newKeys[key(a)]) lbl.appendChild(el("span", "badge new", "NEW"));
+    box.appendChild(lbl);
+    box.appendChild(el("div", "big", won(a.price)));
     var row = el("div", "row");
     if (b) {
       var d = a.price - b.price;
@@ -188,22 +257,98 @@ svg.chart{width:100%;height:auto;display:block}
     box.appendChild(el("div", "meta", parts.join(" · ")));
   }
 
+  function tile(label, value, sub, cls) {
+    var t = el("div", "tile");
+    t.appendChild(el("div", "m", label));
+    t.appendChild(el("div", "v" + (cls ? " " + cls : ""), value));
+    if (sub) t.appendChild(el("div", "m", sub));
+    return t;
+  }
+  function avg(arr) { return arr.reduce(function (s, t) { return s + t.price; }, 0) / arr.length; }
+
+  function renderMetrics(list) {
+    var box = $("metrics"); clear(box);
+    if (!list.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.appendChild(el("h2", "", "핵심 지표"));
+    var max = list.reduce(function (m, t) { return t.price > m.price ? t : m; }, list[0]);
+    var c3 = isoDaysAgo(3), c6 = isoDaysAgo(6);
+    var recent = list.filter(function (t) { return t.date >= c3; });
+    var prev = list.filter(function (t) { return t.date >= c6 && t.date < c3; });
+    var grid = el("div", "tiles");
+    var toMax = pct(list[0].price, max.price);
+    grid.appendChild(tile("역대 최고가", won(max.price),
+      max.date.replace(/-/g, ".") + " · 현재가 " + (toMax >= 0 ? "▲ " : "▼ ") + Math.abs(toMax).toFixed(1) + "%"));
+    if (recent.length) {
+      var sub = prev.length ? "직전 3개월 대비 " + sgn(pct(avg(recent), avg(prev))) : "직전 3개월 거래 없음";
+      grid.appendChild(tile("최근 3개월 평균", won(avg(recent)), sub));
+    } else {
+      grid.appendChild(tile("최근 3개월 평균", "거래 없음", "최근 3개월 거래가 없어요"));
+    }
+    grid.appendChild(tile("최근 3개월 거래", recent.length + "건",
+      "직전 3개월 " + prev.length + "건"));
+    var hi = list.filter(function (t) { return t.price >= max.price * 0.97; }).length;
+    grid.appendChild(tile("최고가 3% 이내 거래", hi + "건", "전체 " + list.length + "건 중"));
+    box.appendChild(grid);
+    box.appendChild(el("p", "note", "선택한 단지·크기 기준이에요. 층·동 차이가 섞여 있어 단순 비교용이에요."));
+  }
+
+  /* ------------------------------------------------------------ 예측 */
+  function renderForecast() {
+    var box = $("forecast"); clear(box);
+    var f = fcFor();
+    if (!state.hasFc) { box.hidden = true; return; }   // 예측 정보가 없는 예전 데이터 파일
+    box.hidden = false;
+    var h = el("h2", "", "3개월 예측");
+    h.appendChild(el("span", "warn", "참고용"));
+    box.appendChild(h);
+    if (!f) {
+      box.appendChild(el("div", "empty", "이 크기는 최근 거래가 적어 예측을 제공하지 않아요."));
+      return;
+    }
+    var last = f.pts[f.pts.length - 1];
+    var d = last.p - f.base_p, pc = pct(last.p, f.base_p);
+    var grid = el("div", "tiles");
+    grid.appendChild(tile(Number(f.base.slice(5)) + "월 평균가", won(f.base_p), "최근 월평균"));
+    grid.appendChild(tile(Number(last.m.slice(5)) + "월 예측가", won(last.p),
+      (d > 0 ? "▲ " : d < 0 ? "▼ " : "") + won(Math.abs(d)) + " (" + (pc >= 0 ? "+" : "") + pc.toFixed(1) + "%)", "fc"));
+    box.appendChild(grid);
+    var kv = el("div", "kv");
+    kv.appendChild(el("span", "", Number(last.m.slice(5)) + "월 예상 범위"));
+    kv.appendChild(el("b", "", won(last.lo) + " ~ " + won(last.hi)));
+    box.appendChild(kv);
+    var kv2 = el("div", "kv");
+    kv2.appendChild(el("span", "", "예측 모델"));
+    kv2.appendChild(el("b", "", "ARIMA(" + f.order.join(",") + ") · 월평균가 기준"));
+    box.appendChild(kv2);
+    var acc = "예상 범위는 80% 확률 구간이에요.";
+    if (f.mape != null) {
+      acc += " 과거 " + f.n + "개월 데이터로 검증하면 3개월 뒤를 평균 " + f.mape + "% 오차로 맞혔어요";
+      acc += f.naive != null ? " (지금 가격이 유지된다고 본 경우 " + f.naive + "%)." : ".";
+    }
+    box.appendChild(el("p", "note", acc + " 예측에는 이상치를 제외한 월평균가를 썼고, 금리·정책 같은 외부 요인은 반영하지 않아요."));
+  }
+
+  /* ------------------------------------------------------------ 차트 */
   function renderChart(list) {
     var card = $("chartcard"), box = $("chart"); clear(box);
     card.hidden = false;
     var pts = list.slice().reverse();     // 오래된 순
     if (state.range) {
-      var c = new Date(); c.setMonth(c.getMonth() - state.range);
-      var cut = c.toISOString().slice(0, 10);
+      var cut = isoDaysAgo(state.range);
       pts = pts.filter(function (t) { return t.date >= cut; });
     }
     if (pts.length < 2) { box.appendChild(el("div", "empty", "표시할 거래가 부족해요. 기간을 늘려보세요.")); return; }
 
+    var f = fcFor();
+    var anchorX = f ? Date.parse(f.base + "-15") : null;
+    var fx = f ? f.pts.map(function (p) { return Date.parse(p.m + "-15"); }) : [];
     var W = 320, H = 170, L = 40, R = 8, T = 8, B = 22;
-    var xs = pts.map(function (t) { return Date.parse(t.date); });
+    var xs = pts.map(function (t) { return Date.parse(t.date); }).concat(fx);
     var xmin = Math.min.apply(null, xs), xmax = Math.max.apply(null, xs);
     if (xmin === xmax) xmax = xmin + 86400000;
     var ps = pts.map(function (t) { return t.price; });
+    if (f) f.pts.forEach(function (p) { ps.push(p.lo, p.hi); });
     var ymin = Math.min.apply(null, ps), ymax = Math.max.apply(null, ps);
     var pad = Math.max((ymax - ymin) * 0.12, 500);
     ymin -= pad; ymax += pad;
@@ -211,7 +356,7 @@ svg.chart{width:100%;height:auto;display:block}
     var Y = function (p) { return T + (ymax - p) / (ymax - ymin) * (H - T - B); };
 
     var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
-            compName() + ' ' + sizeName(state.size) + ' 거래가 추이 차트">';
+            compName() + ' ' + sizeName(state.size) + ' 거래가 추이' + (f ? '와 예측' : '') + ' 차트">';
     for (var i = 0; i < 3; i++) {
       var v = ymin + (ymax - ymin) * (i / 2), y = Y(v).toFixed(1);
       s += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>' +
@@ -220,21 +365,37 @@ svg.chart{width:100%;height:auto;display:block}
     var byMonth = {};
     pts.forEach(function (t) { var k = t.date.slice(0, 7); (byMonth[k] = byMonth[k] || []).push(t.price); });
     var line = Object.keys(byMonth).sort().map(function (k) {
-      var arr = byMonth[k], avg = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
-      return X(Date.parse(k + "-15")).toFixed(1) + "," + Y(avg).toFixed(1);
+      var arr = byMonth[k], a = arr.reduce(function (x, y2) { return x + y2; }, 0) / arr.length;
+      return X(Date.parse(k + "-15")).toFixed(1) + "," + Y(a).toFixed(1);
     });
+    if (f && anchorX >= xmin) {           // 예상 범위(띠) + 예측선: 마지막 실제 월평균에서 이어짐
+      var up = [X(anchorX).toFixed(1) + "," + Y(f.base_p).toFixed(1)], dn = up.slice(), mid = up.slice();
+      f.pts.forEach(function (p, j) {
+        var x = X(fx[j]).toFixed(1);
+        up.push(x + "," + Y(p.hi).toFixed(1)); dn.unshift(x + "," + Y(p.lo).toFixed(1)); mid.push(x + "," + Y(p.p).toFixed(1));
+      });
+      s += '<polygon class="fc-band" points="' + up.concat(dn.slice(0, dn.length - 1)).join(" ") + '"/>';
+    }
     pts.forEach(function (t) {
       s += '<circle class="dot" cx="' + X(Date.parse(t.date)).toFixed(1) + '" cy="' + Y(t.price).toFixed(1) + '" r="3"/>';
     });
     if (line.length > 1) s += '<polyline class="avg" points="' + line.join(" ") + '"/>';
     var lp = pts[pts.length - 1];
     s += '<circle class="last" cx="' + X(Date.parse(lp.date)).toFixed(1) + '" cy="' + Y(lp.price).toFixed(1) + '" r="4.5"/>';
+    if (f && anchorX >= xmin) {
+      s += '<polyline class="fc-line" points="' + mid.join(" ") + '"/>';
+      var e = f.pts[f.pts.length - 1];
+      s += '<circle class="fc-dot" cx="' + X(fx[fx.length - 1]).toFixed(1) + '" cy="' + Y(e.p).toFixed(1) + '" r="4.5"/>';
+    }
+    var endLabel = f ? f.pts[f.pts.length - 1].m : lp.date.slice(0, 7);
     s += '<text class="axis" x="' + L + '" y="' + (H - 6) + '">' + pts[0].date.slice(2, 7).replace("-", ".") + '</text>' +
-         '<text class="axis" x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + lp.date.slice(2, 7).replace("-", ".") + '</text>';
+         '<text class="axis" x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + endLabel.slice(2, 7).replace("-", ".") + '</text>';
     s += "</svg>";
     box.innerHTML = s;                    // 숫자와 고정 문자열만 들어감
+    $("legend").textContent = "점: 개별 거래 · 실선: 월 평균" + (f ? " · 점선·띠: 예측과 80% 범위" : "");
   }
 
+  /* ------------------------------------------------------------ 목록 */
   function renderList(list) {
     var wrap = $("listwrap"), box = $("list"), more = $("more");
     clear(box);
@@ -247,9 +408,10 @@ svg.chart{width:100%;height:auto;display:block}
       var row = el("div", "item");
       var left = el("div");
       left.appendChild(el("div", "d", md(t.date)));
-      var sub = (t.dong ? t.dong + " · " : "") + t.floor + "층 · " + (pyOf(t.size) ? pyOf(t.size) + "평형 · " : "") + t.area + "㎡";
-      var s = el("div", "s", sub);
+      var s = el("div", "s", (t.dong ? t.dong + " · " : "") + t.floor + "층 · " + t.area + "㎡");
       if (t.direct) s.appendChild(el("span", "badge", "직거래"));
+      if (t.out) s.appendChild(el("span", "badge", "이상치"));
+      if (state.newKeys[key(t)]) s.appendChild(el("span", "badge new", "NEW"));
       left.appendChild(s);
       row.appendChild(left);
       row.appendChild(el("div", "p", won(t.price)));
@@ -258,30 +420,22 @@ svg.chart{width:100%;height:auto;display:block}
     more.hidden = list.length <= state.shown;
   }
 
-  function renderComps() {
-    var box = $("comps"); clear(box);
-    state.comps.forEach(function (c) {
-      var b = el("button", "chip", c.name);
-      b.type = "button";
-      b.setAttribute("aria-pressed", String(c.id === state.cid));
-      b.addEventListener("click", function () { selectComplex(c.id); });
-      box.appendChild(b);
-    });
-  }
-
   function renderAll() {
     renderComps();
     renderSizes();
+    renderOutLabel();
     document.title = compName() + " 실거래가";
     $("title").textContent = compName();
     var list = current();
     if (state.size === null) {            // 이 단지는 수집된 거래가 아직 없음
       var box = $("summary"); clear(box);
       box.appendChild(el("div", "empty", compName() + " 거래 데이터가 아직 없어요. 다음 자동 갱신 때 채워져요."));
-      $("chartcard").hidden = true; $("listwrap").hidden = true;
+      ["chartcard", "listwrap", "metrics", "forecast"].forEach(function (id) { $(id).hidden = true; });
       return;
     }
     renderSummary(list);
+    renderMetrics(list);
+    renderForecast();
     renderChart(list);
     renderList(list);
   }
@@ -296,25 +450,55 @@ svg.chart{width:100%;height:auto;display:block}
     renderAll();
   }
 
+  /* ------------------------------------------------------------ 새 거래(NEW)
+     마지막으로 본 데이터와 비교해 새로 올라온 최근 6개월 거래에 NEW 를 붙인다.
+     같은 데이터를 다시 열어도 다음 갱신 전까지는 그대로 유지. 첫 방문에는 표시하지 않는다. */
+  function markNew(data) {
+    var cut = isoDaysAgo(6), cur = {};
+    state.all.forEach(function (t) { if (t.date >= cut) cur[key(t)] = 1; });
+    var saved = store("jamsil-seen-v1"), nw = {};
+    if (saved && saved.upd === data.updated) {
+      (saved.nw || []).forEach(function (k) { nw[k] = 1; });
+    } else if (saved && saved.keys) {
+      var seen = {};
+      saved.keys.forEach(function (k) { seen[k] = 1; });
+      Object.keys(cur).forEach(function (k) { if (!seen[k]) nw[k] = 1; });
+      store("jamsil-seen-v1", { upd: data.updated, keys: Object.keys(cur), nw: Object.keys(nw) });
+    } else {
+      store("jamsil-seen-v1", { upd: data.updated, keys: Object.keys(cur), nw: [] });
+    }
+    state.newKeys = nw;
+    var n = Object.keys(nw).length;
+    if (n) { var p = $("newpill"); p.textContent = "새 거래 " + n + "건"; p.hidden = false; }
+  }
+
   function init(data) {
     state.all = (data.transactions || []).map(function (t) { if (!t.c) t.c = "els"; return t; });  // v1 파일은 잠실엘스
     state.comps = (data.complexes && data.complexes.length) ? data.complexes : [{ id: "els", name: "잠실엘스" }];
+    state.fc = data.forecast || {}; state.hasFc = !!data.forecast;
     if (data.updated) {
       var u = $("updated");
       u.textContent = "갱신 " + new Date(data.updated).toLocaleString("ko-KR", {
         timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
       u.hidden = false;
     }
+    markNew(data);
     var want = (location.hash || "").slice(1);
     var ok = state.comps.some(function (c) { return c.id === want; });
     selectComplex(ok ? want : state.comps[0].id);
   }
 
+  /* ------------------------------------------------------------ 이벤트 */
   $("ranges").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     state.range = Number(b.dataset.r);
     Array.prototype.forEach.call(this.children, function (c) { c.setAttribute("aria-pressed", String(c === b)); });
     renderChart(current());
+  });
+  var savedOut = store("jamsil-hide-out");
+  if (savedOut !== null) { state.hideOut = !!savedOut; $("hideOut").checked = state.hideOut; }
+  $("hideOut").addEventListener("change", function () {
+    state.hideOut = this.checked; store("jamsil-hide-out", this.checked); state.shown = 20; renderAll();
   });
   $("hideDirect").addEventListener("change", function () { state.hideDirect = this.checked; state.shown = 20; renderAll(); });
   $("more").addEventListener("click", function () { state.shown += 20; renderList(current()); });
@@ -326,6 +510,12 @@ svg.chart{width:100%;height:auto;display:block}
       clear($("summary"));
       $("summary").appendChild(el("div", "empty", "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."));
     });
+
+  if ("serviceWorker" in navigator) {     // 홈 화면 추가·오프라인 열기용 (PWA)
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    });
+  }
 })();
 </script>
 </body>
