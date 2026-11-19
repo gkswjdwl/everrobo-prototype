@@ -1,8 +1,10 @@
-"""잠실엘스 매매 실거래가 수집기
+"""잠실 대단지(잠실엘스·리센츠·트리지움) 매매 실거래가 수집기
 (국토교통부 '아파트 매매 실거래가 상세 자료' Open API)
 
+세 단지 모두 송파구 잠실동이라 한 번의 호출(송파구 + 계약년월)로 함께 받아 단지별로 나눕니다.
+
 사용법
-  python scripts/collect.py --probe          # 인증키·응답 구조 점검 (저장 안 함)
+  python scripts/collect.py --probe          # 인증키·응답 구조·단지명 매칭 점검 (저장 안 함)
   python scripts/collect.py --since 200801   # 최초 1회: 2008년 1월부터 전체 수집
   python scripts/collect.py                  # 정기 갱신: 최근 3개월을 다시 받아 덮어쓰기
 
@@ -23,12 +25,21 @@ import requests
 BASE_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
 LAWD_CD = "11710"  # 송파구 법정동코드 앞 5자리
 DONG = "잠실동"
-COMPLEX = "잠실엘스"
 PAGE_SIZE = 1000
+
+# 수집 대상 단지. match 는 단지명(공백 제거)에 포함되어야 하는 글자입니다.
+COMPLEXES = [
+    {"id": "els", "name": "잠실엘스", "match": ["잠실엘스"]},
+    {"id": "ricenz", "name": "리센츠", "match": ["리센츠"]},
+    {"id": "trizium", "name": "트리지움", "match": ["트리지움"]},
+]
+DEFAULT_COMPLEX = "els"  # 예전(v1) 파일은 잠실엘스만 담고 있었음
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "data" / "transactions.json"
 KST = timezone(timedelta(hours=9))
+
+FIELD_ORDER = ("c", "date", "dong", "floor", "area", "size", "price", "direct", "built")
 
 # 응답에 반드시 있어야 하는 태그 (없으면 API 스펙이 바뀐 것이므로 중단)
 REQUIRED = ("aptNm", "umdNm", "dealAmount", "excluUseAr", "floor",
@@ -101,9 +112,19 @@ def check_schema(item):
 
 
 # ---------------------------------------------------------------- 전처리
+def find_complex(apt_name):
+    """단지명 -> 단지 id (대상이 아니면 None)."""
+    name = apt_name.replace(" ", "")
+    for c in COMPLEXES:
+        if any(m in name for m in c["match"]):
+            return c["id"]
+    return None
+
+
 def to_record(it):
-    """원본 1건 -> 앱용 레코드. 잠실엘스가 아니거나 해제된 거래면 None."""
-    if it["aptNm"].replace(" ", "") != COMPLEX:
+    """원본 1건 -> 앱용 레코드. 대상 단지가 아니거나 해제된 거래면 None."""
+    cid = find_complex(it["aptNm"])
+    if cid is None:
         return None
     if it["umdNm"] and it["umdNm"] != DONG:
         return None
@@ -112,6 +133,7 @@ def to_record(it):
     area = float(it["excluUseAr"])
     built = it.get("buildYear", "")
     return {
+        "c": cid,
         "date": f"{int(it['dealYear']):04d}-{int(it['dealMonth']):02d}-{int(it['dealDay']):02d}",
         "dong": it.get("aptDong", ""),            # 동 정보는 등기 완료 건에만 공개됨
         "floor": int(it["floor"]),
@@ -126,7 +148,7 @@ def to_record(it):
 def dedupe(records):
     seen, out = set(), []
     for r in records:
-        k = (r["date"], r["dong"], r["floor"], r["area"], r["price"])
+        k = (r["c"], r["date"], r["dong"], r["floor"], r["area"], r["price"])
         if k not in seen:
             seen.add(k)
             out.append(r)
@@ -135,24 +157,35 @@ def dedupe(records):
 
 # ---------------------------------------------------------------- 저장
 def sort_key(t):
-    return (t["date"], t["price"], t["floor"])
+    return (t["date"], t["price"], t["floor"], t["c"])
 
 
 def load_existing():
+    """(기존 거래 목록, 현재 스키마(v2) 여부). v1 파일의 거래는 잠실엘스로 간주."""
     if not OUT.exists():
-        return []
+        return [], True
     try:
-        return json.loads(OUT.read_text(encoding="utf-8")).get("transactions", [])
+        data = json.loads(OUT.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return []
+        return [], True
+    txs = data.get("transactions", [])
+    for t in txs:
+        t.setdefault("c", DEFAULT_COMPLEX)
+    return txs, "complexes" in data
 
 
 def write_output(txs, now):
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    lines = ",\n".join("  " + json.dumps(t, ensure_ascii=False, separators=(",", ":")) for t in txs)
-    text = ('{"complex":%s,"unit":"만원","updated":%s,"count":%d,"transactions":[\n%s\n]}\n'
-            % (json.dumps(COMPLEX, ensure_ascii=False),
-               json.dumps(now.isoformat(timespec="seconds")), len(txs), lines))
+    counts = {}
+    for t in txs:
+        counts[t["c"]] = counts.get(t["c"], 0) + 1
+    comps = [{"id": c["id"], "name": c["name"], "count": counts.get(c["id"], 0)} for c in COMPLEXES]
+    lines = ",\n".join(
+        "  " + json.dumps({k: t.get(k) for k in FIELD_ORDER}, ensure_ascii=False, separators=(",", ":"))
+        for t in txs)
+    text = ('{"unit":"만원","updated":%s,"count":%d,"complexes":%s,"transactions":[\n%s\n]}\n'
+            % (json.dumps(now.isoformat(timespec="seconds")), len(txs),
+               json.dumps(comps, ensure_ascii=False, separators=(",", ":")), lines))
     OUT.write_text(text, encoding="utf-8")
 
 
@@ -176,6 +209,11 @@ def recent_months(until, n):
     return out[::-1]
 
 
+def summarize(recs):
+    return " / ".join(f"{c['name']} {sum(1 for r in recs if r['c'] == c['id'])}"
+                      for c in COMPLEXES)
+
+
 def probe(key, this_ym):
     ym = recent_months(this_ym, 2)[0]  # 지난달 (거래가 확실히 있는 달)
     items = fetch_month(key, ym)
@@ -185,16 +223,19 @@ def probe(key, this_ym):
         return
     print("필드:", sorted(items[0]))
     check_schema(items[0])
-    hit = [r for r in map(to_record, items) if r]
-    print(f"잠실엘스 {len(hit)}건 매칭 -> 필터링 정상" if hit
-          else "잠실엘스 매칭 0건 (이 달에 거래가 없었거나 단지명이 다를 수 있음)")
-    if hit:
-        print("예시:", hit[0])
+    names = sorted({it["aptNm"] for it in items if it.get("umdNm") == DONG})
+    print(f"{DONG} 단지명 {len(names)}개:", ", ".join(names))
+    recs = [r for r in map(to_record, items) if r]
+    for c in COMPLEXES:
+        hit = [r for r in recs if r["c"] == c["id"]]
+        print(f"  {c['name']}: {len(hit)}건 매칭" + ("" if hit else "  <- 0건 (그 달 거래가 없었거나 단지명이 다를 수 있음)"))
+    if recs:
+        print("예시:", recs[0])
 
 
 def main():
-    ap = argparse.ArgumentParser(description="잠실엘스 실거래가 수집기")
-    ap.add_argument("--probe", action="store_true", help="키/응답 구조만 점검")
+    ap = argparse.ArgumentParser(description="잠실 대단지 실거래가 수집기")
+    ap.add_argument("--probe", action="store_true", help="키/응답 구조/단지명 매칭만 점검")
     ap.add_argument("--since", help="이 연월(YYYYMM)부터 현재까지 전체 수집 (최초 1회용)")
     ap.add_argument("--months", type=int, default=3, help="정기 갱신 시 다시 받을 최근 개월 수")
     args = ap.parse_args()
@@ -222,19 +263,19 @@ def main():
             checked = True
         recs = dedupe([r for r in map(to_record, items) if r])
         fresh[ym] = recs
-        print(f"{ym}: 송파구 {len(items)}건 -> 잠실엘스 {len(recs)}건")
+        print(f"{ym}: 송파구 {len(items)}건 -> {summarize(recs)}")
         time.sleep(0.2)
 
     # 다시 받은 달은 통째로 교체 (신고 지연·정정·해제를 자동 반영)
-    old = load_existing()
+    old, schema_ok = load_existing()
     kept = [t for t in old if t["date"][:7].replace("-", "") not in fresh]
     merged = sorted(kept + [r for recs in fresh.values() for r in recs], key=sort_key, reverse=True)
 
-    if merged == sorted(old, key=sort_key, reverse=True):
+    if schema_ok and merged == sorted(old, key=sort_key, reverse=True):
         print("변경 없음")
         return
     write_output(merged, now)
-    print(f"저장 완료: 총 {len(merged)}건 -> {OUT.relative_to(ROOT)}")
+    print(f"저장 완료: 총 {len(merged)}건 ({summarize(merged)}) -> {OUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

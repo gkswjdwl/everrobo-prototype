@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>잠실엘스 실거래가</title>
+<title>잠실 실거래가</title>
 <meta name="theme-color" content="#F3F5F8">
 <style>
 :root{
@@ -31,6 +31,7 @@ h1{margin:0;font-size:26px;line-height:1.2;letter-spacing:-0.02em}
   background:var(--card);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .chip:focus-visible,.more:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.chip .sub{font-size:11px;opacity:.8;margin-left:4px;font-weight:400}
 .card{background:var(--card);border-radius:16px;padding:18px}
 .lbl{font-size:13px;color:var(--sub)}
 .big{font-size:32px;font-weight:700;letter-spacing:-0.02em;line-height:1.25}
@@ -70,11 +71,12 @@ svg.chart{width:100%;height:auto;display:block}
   <header>
     <div>
       <span class="loc">송파구 · 잠실동</span>
-      <h1>잠실엘스</h1>
+      <h1 id="title">잠실 실거래가</h1>
     </div>
     <span class="pill" id="updated" hidden></span>
   </header>
 
+  <div class="chips" id="comps" role="group" aria-label="단지 선택"></div>
   <div class="chips" id="sizes" role="group" aria-label="평형 선택"></div>
 
   <section class="card" id="summary" aria-live="polite">
@@ -111,8 +113,22 @@ svg.chart{width:100%;height:auto;display:block}
 
 <script>
 (function () {
-  var state = { all: [], size: null, range: 12, hideDirect: false, shown: 20 };
+  var state = { all: [], comps: [], cid: null, size: null, range: 12, hideDirect: false, shown: 20 };
   var $ = function (id) { return document.getElementById(id); };
+
+  // 평형 표기는 쓰지 않고 전용면적(㎡)만 보여줍니다. 나중에 쓰려면 단지별로 { 구간: 평 } 을 채우세요.
+  // 예) els: { 84: 33 }
+  var PYEONG = { els: {}, ricenz: {}, trizium: {} };
+  function pyOf(size) { return (PYEONG[state.cid] || {})[size] || null; }
+  function pyText(size) { var p = pyOf(size); return p ? p + "평형" : null; }
+  function sizeName(size) {             // "33평형 (84㎡)" 또는 "84㎡"
+    var p = pyText(size);
+    return p ? p + " (" + size + "㎡)" : size + "㎡";
+  }
+  function compName() {
+    var c = state.comps.filter(function (x) { return x.id === state.cid; })[0];
+    return c ? c.name : "";
+  }
 
   function won(p) {              // 만원 -> "25억 2,000만"
     var e = Math.floor(p / 10000), m = p % 10000;
@@ -131,16 +147,18 @@ svg.chart{width:100%;height:auto;display:block}
 
   function current() {
     return state.all.filter(function (t) {
-      return t.size === state.size && !(state.hideDirect && t.direct);
+      return t.c === state.cid && t.size === state.size && !(state.hideDirect && t.direct);
     });                                   // 파일이 최신순이라 그대로 최신순
   }
 
   function renderSizes() {
     var box = $("sizes"); clear(box);
     var sizes = {};
-    state.all.forEach(function (t) { sizes[t.size] = (sizes[t.size] || 0) + 1; });
+    state.all.forEach(function (t) { if (t.c === state.cid) sizes[t.size] = (sizes[t.size] || 0) + 1; });
     Object.keys(sizes).map(Number).sort(function (a, b) { return a - b; }).forEach(function (s) {
-      var b = el("button", "chip", s + "㎡");
+      var p = pyText(s);
+      var b = el("button", "chip", p || s + "㎡");
+      if (p) b.appendChild(el("span", "sub", s + "㎡"));
       b.type = "button";
       b.setAttribute("aria-pressed", String(s === state.size));
       b.addEventListener("click", function () { state.size = s; state.shown = 20; renderAll(); });
@@ -152,7 +170,7 @@ svg.chart{width:100%;height:auto;display:block}
     var box = $("summary"); clear(box);
     if (!list.length) { box.appendChild(el("div", "empty", "이 조건의 거래가 없어요.")); return; }
     var a = list[0], b = list[1];
-    box.appendChild(el("div", "lbl", state.size + "㎡ 최근 실거래가"));
+    box.appendChild(el("div", "lbl", compName() + " " + sizeName(state.size) + " 최근 실거래가"));
     var big = el("div", "big", won(a.price));
     box.appendChild(big);
     var row = el("div", "row");
@@ -193,7 +211,7 @@ svg.chart{width:100%;height:auto;display:block}
     var Y = function (p) { return T + (ymax - p) / (ymax - ymin) * (H - T - B); };
 
     var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
-            state.size + '㎡ 거래가 추이 차트">';
+            compName() + ' ' + sizeName(state.size) + ' 거래가 추이 차트">';
     for (var i = 0; i < 3; i++) {
       var v = ymin + (ymax - ymin) * (i / 2), y = Y(v).toFixed(1);
       s += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>' +
@@ -229,7 +247,7 @@ svg.chart{width:100%;height:auto;display:block}
       var row = el("div", "item");
       var left = el("div");
       left.appendChild(el("div", "d", md(t.date)));
-      var sub = (t.dong ? t.dong + " · " : "") + t.floor + "층 · " + t.area + "㎡";
+      var sub = (t.dong ? t.dong + " · " : "") + t.floor + "층 · " + (pyOf(t.size) ? pyOf(t.size) + "평형 · " : "") + t.area + "㎡";
       var s = el("div", "s", sub);
       if (t.direct) s.appendChild(el("span", "badge", "직거래"));
       left.appendChild(s);
@@ -240,31 +258,56 @@ svg.chart{width:100%;height:auto;display:block}
     more.hidden = list.length <= state.shown;
   }
 
+  function renderComps() {
+    var box = $("comps"); clear(box);
+    state.comps.forEach(function (c) {
+      var b = el("button", "chip", c.name);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(c.id === state.cid));
+      b.addEventListener("click", function () { selectComplex(c.id); });
+      box.appendChild(b);
+    });
+  }
+
   function renderAll() {
+    renderComps();
     renderSizes();
+    document.title = compName() + " 실거래가";
+    $("title").textContent = compName();
     var list = current();
+    if (state.size === null) {            // 이 단지는 수집된 거래가 아직 없음
+      var box = $("summary"); clear(box);
+      box.appendChild(el("div", "empty", compName() + " 거래 데이터가 아직 없어요. 다음 자동 갱신 때 채워져요."));
+      $("chartcard").hidden = true; $("listwrap").hidden = true;
+      return;
+    }
     renderSummary(list);
     renderChart(list);
     renderList(list);
   }
 
+  function selectComplex(id) {
+    state.cid = id; state.shown = 20;
+    var cnt = {};
+    state.all.forEach(function (t) { if (t.c === id) cnt[t.size] = (cnt[t.size] || 0) + 1; });
+    var ks = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
+    state.size = ks.length ? Number(ks[0]) : null;   // 거래가 가장 많은 구간을 기본 선택
+    try { history.replaceState(null, "", "#" + id); } catch (e) {}
+    renderAll();
+  }
+
   function init(data) {
-    state.all = (data.transactions || []).slice();
+    state.all = (data.transactions || []).map(function (t) { if (!t.c) t.c = "els"; return t; });  // v1 파일은 잠실엘스
+    state.comps = (data.complexes && data.complexes.length) ? data.complexes : [{ id: "els", name: "잠실엘스" }];
     if (data.updated) {
       var u = $("updated");
       u.textContent = "갱신 " + new Date(data.updated).toLocaleString("ko-KR", {
         timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
       u.hidden = false;
     }
-    if (!state.all.length) {
-      clear($("summary"));
-      $("summary").appendChild(el("div", "empty", "아직 수집된 거래 데이터가 없어요."));
-      return;
-    }
-    var cnt = {};
-    state.all.forEach(function (t) { cnt[t.size] = (cnt[t.size] || 0) + 1; });
-    state.size = Number(Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0]);
-    renderAll();
+    var want = (location.hash || "").slice(1);
+    var ok = state.comps.some(function (c) { return c.id === want; });
+    selectComplex(ok ? want : state.comps[0].id);
   }
 
   $("ranges").addEventListener("click", function (e) {
