@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잠실엘스 실거래가</title>
+<meta name="theme-color" content="#F3F5F8">
+<style>
+:root{
+  --bg:#F3F5F8; --card:#FFFFFF; --text:#17212B; --sub:#55606E; --line:#EDF0F4;
+  --accent:#1B4FD8; --accent-ink:#FFFFFF; --up:#C42032; --down:#1B4FD8;
+  --chip-line:#CBD3DD; --pill-bg:#E4EAF5; --pill-ink:#33415C; --badge-bg:#FFE9C7; --badge-ink:#8A4B00;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F1B2D; --card:#16263D; --text:#E8EEF7; --sub:#A9B7CC; --line:#2B3F5C;
+    --accent:#5B8CFF; --accent-ink:#0F1B2D; --up:#FF8A96; --down:#7FA6FF;
+    --chip-line:#3A4F70; --pill-bg:#22365A; --pill-ink:#C9D6EC; --badge-bg:#3A2A10; --badge-ink:#F2A33A;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.5}
+main{max-width:480px;margin:0 auto;padding:24px 16px 40px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.loc{font-size:13px;color:var(--sub)}
+h1{margin:0;font-size:26px;line-height:1.2;letter-spacing:-0.02em}
+.pill{font-size:12px;color:var(--pill-ink);background:var(--pill-bg);padding:5px 10px;border-radius:999px;white-space:nowrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--chip-line);
+  background:var(--card);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.chip:focus-visible,.more:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.card{background:var(--card);border-radius:16px;padding:18px}
+.lbl{font-size:13px;color:var(--sub)}
+.big{font-size:32px;font-weight:700;letter-spacing:-0.02em;line-height:1.25}
+.diff{font-size:14px;font-weight:700}
+.diff.up{color:var(--up)} .diff.down{color:var(--down)}
+.meta{font-size:13px;color:var(--sub)}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.chart-head .chips .chip{min-height:36px;padding:0 12px;font-size:13px}
+svg.chart{width:100%;height:auto;display:block}
+.grid{stroke:var(--line);stroke-width:1}
+.axis{fill:var(--sub);font-size:10px}
+.dot{fill:var(--accent);opacity:.4}
+.avg{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.last{fill:var(--card);stroke:var(--accent);stroke-width:2.5}
+.empty{color:var(--sub);font-size:14px;text-align:center;padding:24px 8px}
+.list-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:0 2px}
+.list-head h2{margin:0;font-size:16px}
+.toggle{display:flex;align-items:center;gap:8px;min-height:44px;font-size:13px;color:var(--sub);cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--accent)}
+.list{padding:0 18px}
+.month{font-size:13px;font-weight:700;color:var(--sub);padding:14px 0 4px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .d{font-size:14px;font-weight:500}
+.item .s{font-size:12px;color:var(--sub)}
+.item .p{font-size:16px;font-weight:700;white-space:nowrap}
+.badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;font-size:11px;background:var(--badge-bg);color:var(--badge-ink)}
+.more{min-height:44px;width:100%;border:0;border-top:1px solid var(--line);background:transparent;color:var(--accent);
+  font:inherit;font-size:14px;font-weight:700;cursor:pointer;border-radius:0 0 16px 16px}
+.foot{margin:0;font-size:12px;line-height:1.6;color:var(--sub);text-align:center}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <span class="loc">송파구 · 잠실동</span>
+      <h1>잠실엘스</h1>
+    </div>
+    <span class="pill" id="updated" hidden></span>
+  </header>
+
+  <div class="chips" id="sizes" role="group" aria-label="평형 선택"></div>
+
+  <section class="card" id="summary" aria-live="polite">
+    <div class="empty">불러오는 중…</div>
+  </section>
+
+  <section class="card" id="chartcard" hidden>
+    <div class="chart-head">
+      <span class="lbl">거래가 추이</span>
+      <div class="chips" id="ranges" role="group" aria-label="기간 선택">
+        <button type="button" class="chip" data-r="12" aria-pressed="true">1년</button>
+        <button type="button" class="chip" data-r="36" aria-pressed="false">3년</button>
+        <button type="button" class="chip" data-r="0" aria-pressed="false">전체</button>
+      </div>
+    </div>
+    <div id="chart"></div>
+    <div class="meta">점: 개별 거래 · 선: 월 평균</div>
+  </section>
+
+  <section id="listwrap" hidden>
+    <div class="list-head">
+      <h2>최근 거래</h2>
+      <label class="toggle"><input type="checkbox" id="hideDirect"> 직거래 제외</label>
+    </div>
+    <div class="card" style="padding:0;margin-top:8px">
+      <div class="list" id="list"></div>
+      <button type="button" class="more" id="more" hidden>더보기</button>
+    </div>
+  </section>
+
+  <p class="foot">자료: 국토교통부 실거래가 공개시스템 (공공데이터포털 Open API)<br>
+    계약 후 신고·공개까지 시차가 있어 최근 거래는 늦게 반영될 수 있어요.</p>
+</main>
+
+<script>
+(function () {
+  var state = { all: [], size: null, range: 12, hideDirect: false, shown: 20 };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function won(p) {              // 만원 -> "25억 2,000만"
+    var e = Math.floor(p / 10000), m = p % 10000;
+    if (!e) return m.toLocaleString("ko-KR") + "만";
+    return m ? e + "억 " + m.toLocaleString("ko-KR") + "만" : e + "억";
+  }
+  function eok(p) { return (p / 10000).toFixed(1) + "억"; }
+  function md(d) { return d.slice(5).replace("-", "."); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+
+  function current() {
+    return state.all.filter(function (t) {
+      return t.size === state.size && !(state.hideDirect && t.direct);
+    });                                   // 파일이 최신순이라 그대로 최신순
+  }
+
+  function renderSizes() {
+    var box = $("sizes"); clear(box);
+    var sizes = {};
+    state.all.forEach(function (t) { sizes[t.size] = (sizes[t.size] || 0) + 1; });
+    Object.keys(sizes).map(Number).sort(function (a, b) { return a - b; }).forEach(function (s) {
+      var b = el("button", "chip", s + "㎡");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(s === state.size));
+      b.addEventListener("click", function () { state.size = s; state.shown = 20; renderAll(); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderSummary(list) {
+    var box = $("summary"); clear(box);
+    if (!list.length) { box.appendChild(el("div", "empty", "이 조건의 거래가 없어요.")); return; }
+    var a = list[0], b = list[1];
+    box.appendChild(el("div", "lbl", state.size + "㎡ 최근 실거래가"));
+    var big = el("div", "big", won(a.price));
+    box.appendChild(big);
+    var row = el("div", "row");
+    if (b) {
+      var d = a.price - b.price;
+      var cls = d > 0 ? "up" : d < 0 ? "down" : "";
+      var txt = d === 0 ? "변동 없음" : (d > 0 ? "▲ " : "▼ ") + won(Math.abs(d));
+      row.appendChild(el("span", "diff " + cls, txt));
+      row.appendChild(el("span", "meta", "직전 거래 대비"));
+    }
+    box.appendChild(row);
+    var parts = [a.date.replace(/-/g, ".")];
+    if (a.dong) parts.push(a.dong);
+    parts.push(a.floor + "층");
+    box.appendChild(el("div", "meta", parts.join(" · ")));
+  }
+
+  function renderChart(list) {
+    var card = $("chartcard"), box = $("chart"); clear(box);
+    card.hidden = false;
+    var pts = list.slice().reverse();     // 오래된 순
+    if (state.range) {
+      var c = new Date(); c.setMonth(c.getMonth() - state.range);
+      var cut = c.toISOString().slice(0, 10);
+      pts = pts.filter(function (t) { return t.date >= cut; });
+    }
+    if (pts.length < 2) { box.appendChild(el("div", "empty", "표시할 거래가 부족해요. 기간을 늘려보세요.")); return; }
+
+    var W = 320, H = 170, L = 40, R = 8, T = 8, B = 22;
+    var xs = pts.map(function (t) { return Date.parse(t.date); });
+    var xmin = Math.min.apply(null, xs), xmax = Math.max.apply(null, xs);
+    if (xmin === xmax) xmax = xmin + 86400000;
+    var ps = pts.map(function (t) { return t.price; });
+    var ymin = Math.min.apply(null, ps), ymax = Math.max.apply(null, ps);
+    var pad = Math.max((ymax - ymin) * 0.12, 500);
+    ymin -= pad; ymax += pad;
+    var X = function (t) { return L + (t - xmin) / (xmax - xmin) * (W - L - R); };
+    var Y = function (p) { return T + (ymax - p) / (ymax - ymin) * (H - T - B); };
+
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+            state.size + '㎡ 거래가 추이 차트">';
+    for (var i = 0; i < 3; i++) {
+      var v = ymin + (ymax - ymin) * (i / 2), y = Y(v).toFixed(1);
+      s += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>' +
+           '<text class="axis" x="' + (L - 4) + '" y="' + (Number(y) + 3) + '" text-anchor="end">' + eok(v) + '</text>';
+    }
+    var byMonth = {};
+    pts.forEach(function (t) { var k = t.date.slice(0, 7); (byMonth[k] = byMonth[k] || []).push(t.price); });
+    var line = Object.keys(byMonth).sort().map(function (k) {
+      var arr = byMonth[k], avg = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+      return X(Date.parse(k + "-15")).toFixed(1) + "," + Y(avg).toFixed(1);
+    });
+    pts.forEach(function (t) {
+      s += '<circle class="dot" cx="' + X(Date.parse(t.date)).toFixed(1) + '" cy="' + Y(t.price).toFixed(1) + '" r="3"/>';
+    });
+    if (line.length > 1) s += '<polyline class="avg" points="' + line.join(" ") + '"/>';
+    var lp = pts[pts.length - 1];
+    s += '<circle class="last" cx="' + X(Date.parse(lp.date)).toFixed(1) + '" cy="' + Y(lp.price).toFixed(1) + '" r="4.5"/>';
+    s += '<text class="axis" x="' + L + '" y="' + (H - 6) + '">' + pts[0].date.slice(2, 7).replace("-", ".") + '</text>' +
+         '<text class="axis" x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + lp.date.slice(2, 7).replace("-", ".") + '</text>';
+    s += "</svg>";
+    box.innerHTML = s;                    // 숫자와 고정 문자열만 들어감
+  }
+
+  function renderList(list) {
+    var wrap = $("listwrap"), box = $("list"), more = $("more");
+    clear(box);
+    wrap.hidden = false;
+    if (!list.length) { box.appendChild(el("div", "empty", "이 조건의 거래가 없어요.")); more.hidden = true; return; }
+    var last = "";
+    list.slice(0, state.shown).forEach(function (t) {
+      var ym = t.date.slice(0, 7);
+      if (ym !== last) { box.appendChild(el("div", "month", ym.slice(0, 4) + "년 " + Number(ym.slice(5)) + "월")); last = ym; }
+      var row = el("div", "item");
+      var left = el("div");
+      left.appendChild(el("div", "d", md(t.date)));
+      var sub = (t.dong ? t.dong + " · " : "") + t.floor + "층 · " + t.area + "㎡";
+      var s = el("div", "s", sub);
+      if (t.direct) s.appendChild(el("span", "badge", "직거래"));
+      left.appendChild(s);
+      row.appendChild(left);
+      row.appendChild(el("div", "p", won(t.price)));
+      box.appendChild(row);
+    });
+    more.hidden = list.length <= state.shown;
+  }
+
+  function renderAll() {
+    renderSizes();
+    var list = current();
+    renderSummary(list);
+    renderChart(list);
+    renderList(list);
+  }
+
+  function init(data) {
+    state.all = (data.transactions || []).slice();
+    if (data.updated) {
+      var u = $("updated");
+      u.textContent = "갱신 " + new Date(data.updated).toLocaleString("ko-KR", {
+        timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+      u.hidden = false;
+    }
+    if (!state.all.length) {
+      clear($("summary"));
+      $("summary").appendChild(el("div", "empty", "아직 수집된 거래 데이터가 없어요."));
+      return;
+    }
+    var cnt = {};
+    state.all.forEach(function (t) { cnt[t.size] = (cnt[t.size] || 0) + 1; });
+    state.size = Number(Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0]);
+    renderAll();
+  }
+
+  $("ranges").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    state.range = Number(b.dataset.r);
+    Array.prototype.forEach.call(this.children, function (c) { c.setAttribute("aria-pressed", String(c === b)); });
+    renderChart(current());
+  });
+  $("hideDirect").addEventListener("change", function () { state.hideDirect = this.checked; state.shown = 20; renderAll(); });
+  $("more").addEventListener("click", function () { state.shown += 20; renderList(current()); });
+
+  fetch("./data/transactions.json", { cache: "no-cache" })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(init)
+    .catch(function () {
+      clear($("summary"));
+      $("summary").appendChild(el("div", "empty", "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."));
+    });
+})();
+</script>
+</body>
+</html>
