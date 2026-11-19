@@ -326,7 +326,7 @@ svg.chart{width:100%;height:auto;display:block}
       acc += " 과거 " + f.n + "개월 데이터로 검증하면 3개월 뒤를 평균 " + f.mape + "% 오차로 맞혔어요";
       acc += f.naive != null ? " (지금 가격이 유지된다고 본 경우 " + f.naive + "%)." : ".";
     }
-    box.appendChild(el("p", "note", acc + " 예측에는 이상치를 제외한 월평균가를 썼고, 금리·정책 같은 외부 요인은 반영하지 않아요."));
+    box.appendChild(el("p", "note", acc));
   }
 
   /* ------------------------------------------------------------ 차트 */
