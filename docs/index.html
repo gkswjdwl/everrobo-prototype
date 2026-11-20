@@ -148,7 +148,8 @@ svg.chart{width:100%;height:auto;display:block}
   <p class="foot">자료: 국토교통부 실거래가 공개시스템 (공공데이터포털 Open API)<br>
     계약 후 신고·공개까지 시차가 있어 최근 거래는 늦게 반영될 수 있어요.<br>
     예측은 통계 모델(ARIMA)의 추정치로 참고용이며 실제와 다를 수 있어요.<br>
-    이상치는 같은 단지·크기의 주변 거래와 25% 넘게 차이 나는 거래예요.</p>
+    이상치는 같은 단지·크기의 주변 거래와 25% 넘게 차이 나는 거래예요.<br>
+    <span id="chg"></span></p>
 </main>
 
 <script>
@@ -472,16 +473,22 @@ svg.chart{width:100%;height:auto;display:block}
     if (n) { var p = $("newpill"); p.textContent = "새 거래 " + n + "건"; p.hidden = false; }
   }
 
-  function init(data) {
+  function fmtTime(iso) {
+    return new Date(iso).toLocaleString("ko-KR", {
+      timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+
+  function init(data, status) {
     state.all = (data.transactions || []).map(function (t) { if (!t.c) t.c = "els"; return t; });  // v1 파일은 잠실엘스
     state.comps = (data.complexes && data.complexes.length) ? data.complexes : [{ id: "els", name: "잠실엘스" }];
     state.fc = data.forecast || {}; state.hasFc = !!data.forecast;
-    if (data.updated) {
+    var chk = status && status.checked;       // 자동 수집이 마지막으로 확인한 시각
+    if (chk || data.updated) {
       var u = $("updated");
-      u.textContent = "갱신 " + new Date(data.updated).toLocaleString("ko-KR", {
-        timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+      u.textContent = (chk ? "확인 " : "갱신 ") + fmtTime(chk || data.updated);
       u.hidden = false;
     }
+    if (data.updated) $("chg").textContent = "데이터가 마지막으로 바뀐 시각: " + fmtTime(data.updated);
     markNew(data);
     var want = (location.hash || "").slice(1);
     var ok = state.comps.some(function (c) { return c.id === want; });
@@ -503,9 +510,13 @@ svg.chart{width:100%;height:auto;display:block}
   $("hideDirect").addEventListener("change", function () { state.hideDirect = this.checked; state.shown = 20; renderAll(); });
   $("more").addEventListener("click", function () { state.shown += 20; renderList(current()); });
 
-  fetch("./data/transactions.json", { cache: "no-cache" })
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(init)
+  var getJson = function (url, optional) {
+    return fetch(url, { cache: "no-cache" })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .catch(function (e) { if (optional) return null; throw e; });
+  };
+  Promise.all([getJson("./data/transactions.json"), getJson("./data/status.json", true)])
+    .then(function (r) { init(r[0], r[1]); })
     .catch(function () {
       clear($("summary"));
       $("summary").appendChild(el("div", "empty", "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."));

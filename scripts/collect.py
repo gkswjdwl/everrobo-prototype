@@ -7,7 +7,7 @@
 사용법
   python scripts/collect.py --probe          # 인증키·응답 구조·단지명 매칭 점검 (저장 안 함)
   python scripts/collect.py --since 200801   # 최초 1회: 2008년 1월부터 전체 수집
-  python scripts/collect.py                  # 정기 갱신: 최근 3개월을 다시 받아 덮어쓰기
+  python scripts/collect.py                  # 정기 갱신: 최근 3개월을 다시 받아 덮어쓰기 (확인 시각은 status.json 에 기록)
 
 인증키는 환경변수 DATA_GO_KR_KEY 또는 프로젝트 루트의 .env 파일에서 읽습니다.
 """
@@ -41,6 +41,7 @@ DEFAULT_COMPLEX = "els"  # 예전(v1) 파일은 잠실엘스만 담고 있었음
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "data" / "transactions.json"
+STATUS = ROOT / "docs" / "data" / "status.json"   # 마지막으로 확인한 시각만 담는 작은 파일
 KST = timezone(timedelta(hours=9))
 
 FIELD_ORDER = ("c", "date", "dong", "floor", "area", "size", "price", "direct", "built", "out")
@@ -178,6 +179,12 @@ def load_existing():
     return txs, data.get("forecast", {}), ("complexes" in data and "forecast" in data)
 
 
+def write_status(now):
+    """수집이 성공적으로 끝날 때마다 '확인한 시각'만 따로 기록 (새 거래가 없어도 갱신됨)."""
+    STATUS.parent.mkdir(parents=True, exist_ok=True)
+    STATUS.write_text(json.dumps({"checked": now.isoformat(timespec="seconds")}) + "\n", encoding="utf-8")
+
+
 def write_output(txs, fc, now):
     OUT.parent.mkdir(parents=True, exist_ok=True)
     counts, outs = {}, {}
@@ -287,9 +294,11 @@ def main():
         fc = old_fc
 
     if schema_ok and fc == old_fc and merged == sorted(old, key=sort_key, reverse=True):
-        print("변경 없음")
+        write_status(now)
+        print("변경 없음 (확인 시각만 기록)")
         return
     write_output(merged, fc, now)
+    write_status(now)
     n_out = sum(1 for t in merged if t.get("out"))
     n_fc = sum(len(v) for v in fc.values())
     print(f"저장 완료: 총 {len(merged)}건 ({summarize(merged)}), 이상치 후보 {n_out}건, 예측 {n_fc}개 조합 -> {OUT.relative_to(ROOT)}")
